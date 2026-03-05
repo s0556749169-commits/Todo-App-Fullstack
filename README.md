@@ -1,20 +1,32 @@
-# Todo List App - Fullstack 🚀
+# 📝 Fullstack To-Do List Application
 
-אפליקציית ניהול משימות מלאה הכוללת רישום והתחברות משתמשים.
+אפליקציית ניהול משימות (To-Do List) מקצה לקצה, המאפשרת למשתמשים להירשם, להתחבר ולנהל את המשימות האישיות שלהם בצורה מאובטחת.
 
-## טכנולוגיות:
-* **Frontend:** React
-* **Backend:** .NET Core Web API (C#)
-* **Database:** MySQL
-* **Authentication:** JWT (JSON Web Tokens)
+## 🚀 תכונות עיקריות
+- **מערכת אימות (Authentication):** הרשמה והתחברות משתמשים באמצעות **JWT Token**.
+- **ניהול משימות אישי:** כל משתמש רואה, מוסיף ומוחק רק את המשימות המשויכות אליו.
+- **צד שרת (Backend):** נבנה ב-ASP.NET Core Web API עם חיבור למסד נתונים MySQL.
+- **צד לקוח (Frontend):** ממשק משתמש דינמי שנבנה ב-React.
+- **אבטחה:** הגדרת מדיניות CORS ומפתחות הצפנה לטוקנים.
 
-## איך להפעיל את הפרויקט:
+## 🛠 טכנולוגיות שבהן השתמשתי
+- **Client Side:** React, Axios, CSS3.
+- **Server Side:** .NET 8 / ASP.NET Core API.
+- **Database:** MySQL, Entity Framework Core.
+- **Auth:** JSON Web Tokens (JWT).
 
-### צד שרת (API):
-1. הגדרת מסד נתונים ב-MySQL (יש להריץ את ה-Script ליצירת הטבלאות).
-2. פתיחת התיקייה `TodoApi` והרצת הפקודה `dotnet run`.
+## 📋 מבנה מסד הנתונים
+כדי שהפרויקט יעבוד, יש להקים ב-MySQL שתי טבלאות המקושרות ביניהן (One-to-Many):
+1. **Users** - שמירת פרטי המשתמשים.
+2. **Items** - שמירת המשימות עם שדה `UserId` המקשר למשתמש שיצר אותן.
 
-### צד לקוח (React):
-1. כניסה לתיקיית ה-Client.
-2. הרצת הפקודה `npm install` (בפעם הראשונה).
-3. הרצת הפקודה `npm start`.
+
+
+## 💻 הוראות הפעלה
+
+### הגדרת ה-API (Server)
+1. נווט לתיקיית `TodoApi`.
+2. וודא שקובץ ה-`ConnectionString` בתוך ה-`DbContext` מעודכן עם פרטי ה-MySQL שלך.
+3. הרץ את הפקודה:
+   ```bash
+   dotnet run
