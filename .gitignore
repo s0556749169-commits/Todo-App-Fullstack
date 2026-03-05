@@ -1,0 +1,10 @@
+# React
+node_modules/
+build/
+.env
+
+# .NET / C#
+bin/
+obj/
+appsettings.Development.json
+*.user
