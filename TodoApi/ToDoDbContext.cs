@@ -18,23 +18,24 @@ public partial class ToDoDbContext : DbContext
     public DbSet<User> Users { get; set; }
     public virtual DbSet<Item> Items { get; set; }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+ protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+{
+    if (!optionsBuilder.IsConfigured)
     {
-        if (!optionsBuilder.IsConfigured)
+        var connectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING");
+
+        if (string.IsNullOrEmpty(connectionString))
         {
-            // 1. ניסיון לקרוא את הכתובת מהמשתנה שהגדרת ב-Render
-            var connectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING");
-
-            // 2. אם את במחשב המקומי (והמשתנה ריק), השתמשי בכתובת המקומית שלך
-            if (string.IsNullOrEmpty(connectionString))
-            {
-                // כאן את יכולה לשים את מחרוזת החיבור למחשב שלך בבית אם תרצי
-                connectionString = "server=localhost;database=todo;user=root;password=your_password";
-            }
-
-            optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
+            // מחרוזת לבדיקה במחשב האישי
+            connectionString = "server=localhost;database=todo;user=root;password=your_password";
         }
+
+        // שימוש בגרסה קבועה של MySQL במקום AutoDetect כדי למנוע את השגיאה שראינו ב-Logs
+        var serverVersion = new MySqlServerVersion(new Version(8, 0, 30)); 
+
+        optionsBuilder.UseMySql(connectionString, serverVersion);
     }
+}
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
