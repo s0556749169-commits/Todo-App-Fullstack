@@ -8,6 +8,8 @@ using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// --- 1. הגדרות שירותים (Services) ---
+
 // הגדרת CORS - מאפשר ל-React לתקשר עם השרת
 builder.Services.AddCors(options =>
 {
@@ -23,7 +25,8 @@ builder.Services.AddDbContext<ToDoDbContext>();
 // הגדרת Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-// מפתח סודי - חייב להיות לפחות 32 תווים
+
+// מפתח סודי ל-JWT
 var key = Encoding.ASCII.GetBytes("A_Very_Long_Secret_Key_For_My_Todo_App_123!");
 
 builder.Services.AddAuthentication(options =>
@@ -46,85 +49,50 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+// --- 2. הגדרות Pipeline (Middleware) ---
+
+// מוודא שבסיס הנתונים והטבלאות קיימים בענן
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ToDoDbContext>();
+    db.Database.EnsureCreated();
+}
+
 // הפעלת Swagger
 app.UseSwagger();
 app.UseSwaggerUI();
 
+// חשוב: UseCors חייב להיות לפני Authentication ו-Authorization
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 
-// --- נתיבים (Routes) ---
+// --- 3. נתיבים (Routes) ---
 
 app.MapGet("/", () => "API is Running!");
 
-// 1. שליפת כל המשימות
-// 1. שליפת כל המשימות (עכשיו רק למשתמשים מחוברים!)
-// 1. שליפת משימות - רק של המשתמש המחובר!
-app.MapGet("/items", async (ToDoDbContext db, ClaimsPrincipal user) =>
+// הרשמה (Register)
+app.MapPost("/register", async (ToDoDbContext db, User newUser) =>
 {
-    // חילוץ ה-ID מהטוקן
-    var userId = user.FindFirst("id")?.Value;
-    if (userId == null) return Results.Unauthorized();
+    // בדיקה בסיסית אם המשתמש כבר קיים
+    var exists = await db.Users.AnyAsync(u => u.Username == newUser.Username);
+    if (exists) return Results.BadRequest(new { message = "Username already exists" });
 
-    // סינון המשימות לפי ה-UserId ששמור בטבלה
-    var userTasks = await db.Items
-        .Where(t => t.UserId == int.Parse(userId))
-        .ToListAsync();
+    db.Users.Add(newUser);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { message = "User registered successfully" });
+});
 
-    return Results.Ok(userTasks);
-}).RequireAuthorization();
-
-// 2. הוספת משימה - שיוך אוטומטי למשתמש
+// התחברות (Login)
 app.MapPost("/login", async (ToDoDbContext db, User loginUser) =>
 {
-    // 1. בדיקה שהשדות לא ריקים או מכילים רק רווחים
     if (string.IsNullOrWhiteSpace(loginUser.Username) || string.IsNullOrWhiteSpace(loginUser.Password))
     {
         return Results.BadRequest(new { message = "Username and password are required" });
     }
 
-    // 2. חיפוש המשתמש במסד הנתונים
     var user = await db.Users.FirstOrDefaultAsync(u => 
         u.Username == loginUser.Username && u.Password == loginUser.Password);
-    
-    // 3. אם לא נמצא משתמש - מחזירים שגיאה
-    if (user is null) 
-    {
-        return Results.Unauthorized();
-    }
-
-    // 4. יצירת הטוקן (הקוד הקיים שלך...)
-    var tokenHandler = new JwtSecurityTokenHandler();
-    var tokenDescriptor = new SecurityTokenDescriptor
-    {
-        Subject = new ClaimsIdentity(new[] { 
-            new Claim(ClaimTypes.Name, user.Username),
-            new Claim("id", user.Id.ToString()) 
-        }),
-        Expires = DateTime.UtcNow.AddDays(7),
-        SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
-    };
-    
-    var token = tokenHandler.CreateToken(tokenDescriptor);
-    return Results.Ok(new { token = tokenHandler.WriteToken(token) });
-});
-// 4. מחיקת משימה
-app.MapDelete("/items/{id}", async (ToDoDbContext db, int id) =>
-{
-    if (await db.Items.FindAsync(id) is Item item)
-    {
-        db.Items.Remove(item);
-        await db.SaveChangesAsync();
-        return Results.Ok(item);
-    }
-    return Results.NotFound();
-});
-// נתיב להתחברות - מחזיר טוקן
-app.MapPost("/login", async (ToDoDbContext db, User loginUser) =>
-{
-    // מחפשים את המשתמש במסד הנתונים (במציאות מצפינים סיסמה!)
-    var user = await db.Users.FirstOrDefaultAsync(u => u.Username == loginUser.Username && u.Password == loginUser.Password);
     
     if (user is null) return Results.Unauthorized();
 
@@ -143,11 +111,45 @@ app.MapPost("/login", async (ToDoDbContext db, User loginUser) =>
     return Results.Ok(new { token = tokenHandler.WriteToken(token) });
 });
 
-// נתיב להרשמה (משתמש חדש)
-app.MapPost("/register", async (ToDoDbContext db, User newUser) =>
+// שליפת משימות של המשתמש המחובר
+app.MapGet("/items", async (ToDoDbContext db, ClaimsPrincipal user) =>
 {
-    db.Users.Add(newUser);
+    var userId = user.FindFirst("id")?.Value;
+    if (userId == null) return Results.Unauthorized();
+
+    var userTasks = await db.Items
+        .Where(t => t.UserId == int.Parse(userId))
+        .ToListAsync();
+
+    return Results.Ok(userTasks);
+}).RequireAuthorization();
+
+// הוספת משימה
+app.MapPost("/items", async (ToDoDbContext db, Item newItem, ClaimsPrincipal user) =>
+{
+    var userId = user.FindFirst("id")?.Value;
+    if (userId == null) return Results.Unauthorized();
+
+    newItem.UserId = int.Parse(userId);
+    db.Items.Add(newItem);
     await db.SaveChangesAsync();
-    return Results.Ok(new { message = "User registered successfully" });
-});
+    return Results.Created($"/items/{newItem.Id}", newItem);
+}).RequireAuthorization();
+
+// מחיקת משימה
+app.MapDelete("/items/{id}", async (ToDoDbContext db, int id, ClaimsPrincipal user) =>
+{
+    var userId = user.FindFirst("id")?.Value;
+    if (userId == null) return Results.Unauthorized();
+
+    var item = await db.Items.FindAsync(id);
+    if (item is null) return Results.NotFound();
+    
+    if (item.UserId != int.Parse(userId)) return Results.Forbid();
+
+    db.Items.Remove(item);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { message = "Deleted", id });
+}).RequireAuthorization();
+
 app.Run();
