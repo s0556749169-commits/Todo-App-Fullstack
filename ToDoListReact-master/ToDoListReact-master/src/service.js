@@ -1,7 +1,6 @@
 import axios from 'axios';
 
-const apiUrl = "http://localhost:5115"
-
+const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5115";
 // 1. הזרקת הטוקן לכל בקשה שיוצאת לשרת
 axios.interceptors.request.use(config => {
     const token = localStorage.getItem("token");
