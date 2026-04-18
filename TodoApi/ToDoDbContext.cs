@@ -19,18 +19,22 @@ public class ToDoDbContext : DbContext
             var serverVersion = new MySqlServerVersion(new Version(8, 0, 30)); 
             optionsBuilder.UseMySql(connectionString, serverVersion);
         }
+        optionsBuilder.EnableDetailedErrors();
     }
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        modelBuilder.Entity<User>(entity => {
-            entity.ToTable("users"); 
-            entity.HasKey(e => e.Id);
-        });
+  protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+    modelBuilder.Entity<User>(entity => {
+        entity.ToTable("users"); 
+        entity.HasKey(e => e.Id);
+        entity.Property(e => e.Username).IsRequired().HasMaxLength(255);
+        entity.Property(e => e.Password).IsRequired().HasMaxLength(255);
+    });
 
-        modelBuilder.Entity<Item>(entity => {
-            entity.ToTable("items");
-            entity.HasKey(e => e.Id);
-        });
-    }
+    modelBuilder.Entity<Item>(entity => {
+        entity.ToTable("items");
+        entity.HasKey(e => e.Id);
+        entity.Property(e => e.Name).HasMaxLength(255);
+    });
+}
 }

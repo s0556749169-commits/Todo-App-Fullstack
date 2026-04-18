@@ -14,7 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll",
-        policy => policy.AllowAnyOrigin()
+        policy => policy.WithOrigins("https://todo-frontend-uawb.onrender.com")
                         .AllowAnyMethod()
                         .AllowAnyHeader());
 });
@@ -55,7 +55,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ToDoDbContext>();
-    db.Database.EnsureCreated();
+    db.Database.Migrate();
 }
 
 // הפעלת Swagger
