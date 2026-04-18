@@ -55,9 +55,22 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ToDoDbContext>();
-    db.Database.Migrate();
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS users (
+            Id INT AUTO_INCREMENT PRIMARY KEY,
+            Username VARCHAR(255) NOT NULL,
+            Password VARCHAR(255) NOT NULL
+        );
+    ");
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS items (
+            Id INT AUTO_INCREMENT PRIMARY KEY,
+            Name VARCHAR(255),
+            IsComplete TINYINT(1),
+            UserId INT
+        );
+    ");
 }
-
 // הפעלת Swagger
 app.UseSwagger();
 app.UseSwaggerUI();
